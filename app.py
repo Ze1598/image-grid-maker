@@ -342,10 +342,10 @@ def main():
         
         else:
             st.info("👆 Upload images first to generate a collage")
-    
+
 elif app_mode == "📏 Resize Single Image":
-        # Single image resize mode
-        st.header("📏 Single Image Resizer")
+    # Single image resize mode
+    st.header("📏 Single Image Resizer")
         
         col1, col2 = st.columns([1, 1])
         
