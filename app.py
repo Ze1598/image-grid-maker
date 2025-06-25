@@ -93,18 +93,149 @@ def validate_image(uploaded_file):
     except Exception as e:
         return False, str(e)
 
+def resize_single_image(image, scale_factor):
+    """Resize a single image by the specified scale factor"""
+    # Convert to RGB if necessary (for PNG with transparency)
+    if image.mode in ('RGBA', 'LA', 'P'):
+        # Create a white background
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        if image.mode == 'P':
+            image = image.convert('RGBA')
+        background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+        image = background
+    elif image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Calculate new size based on scale factor
+    new_width = int(image.width * scale_factor)
+    new_height = int(image.height * scale_factor)
+    
+    # Resize image maintaining aspect ratio
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    return resized_image
+
 def main():
     st.set_page_config(
-        page_title="Image Collage Generator",
+        page_title="Image Collage Generator & Resizer",
         page_icon="🖼️",
         layout="wide"
     )
     
-    st.title("🖼️ Image Collage Generator")
-    st.markdown("Upload multiple images to create a beautiful grid collage!")
+    st.title("🖼️ Image Collage Generator & Resizer")
+    st.markdown("Upload multiple images to create a beautiful grid collage, or resize a single image!")
+    
+    # Add tabs for different functionalities
+    tab1, tab2 = st.tabs(["📊 Image Collage", "🔍 Single Image Resize"])
+    
+    with tab2:
+        st.header("🔍 Single Image Resize")
+        st.markdown("Upload a single image and resize it with predefined scale factors.")
+        
+        # File uploader for single image
+        single_image_file = st.file_uploader(
+            "Choose an image file",
+            type=['png', 'jpg', 'jpeg'],
+            accept_multiple_files=False,
+            key="single_image_uploader",
+            help="Select a PNG, JPG, or JPEG file"
+        )
+        
+        if single_image_file:
+            # Validate and process the image
+            is_valid, error_msg = validate_image(single_image_file)
+            
+            if is_valid:
+                try:
+                    original_image = Image.open(single_image_file)
+                    
+                    # Display original image info
+                    st.success(f"✅ Image uploaded successfully!")
+                    st.write(f"**Original dimensions:** {original_image.width} × {original_image.height} pixels")
+                    
+                    # Scale factor selection
+                    scale_options = {
+                        "0.25x (Quarter size)": 0.25,
+                        "0.5x (Half size)": 0.5,
+                        "1x (Original size)": 1.0,
+                        "2x (Double size)": 2.0,
+                        "4x (Quadruple size)": 4.0
+                    }
+                    
+                    selected_scale_label = st.selectbox(
+                        "Select resize factor:",
+                        options=list(scale_options.keys()),
+                        index=2  # Default to 1x (original size)
+                    )
+                    
+                    selected_scale = scale_options[selected_scale_label]
+                    
+                    # Calculate and display new dimensions
+                    new_width = int(original_image.width * selected_scale)
+                    new_height = int(original_image.height * selected_scale)
+                    st.write(f"**New dimensions:** {new_width} × {new_height} pixels")
+                    
+                    # Create two columns for before/after display
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.subheader("Original Image")
+                        # Create thumbnail for display if image is too large
+                        display_original = original_image.copy()
+                        if display_original.width > 400 or display_original.height > 400:
+                            display_original.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                        st.image(display_original, caption=f"Original: {original_image.width}×{original_image.height}")
+                    
+                    with col2:
+                        st.subheader("Resized Image")
+                        if st.button("🔄 Apply Resize", type="primary"):
+                            with st.spinner("Resizing image..."):
+                                try:
+                                    resized_image = resize_single_image(original_image, selected_scale)
+                                    st.session_state.resized_single_image = resized_image
+                                    st.success("✅ Image resized successfully!")
+                                except Exception as e:
+                                    st.error(f"❌ Error resizing image: {str(e)}")
+                        
+                        # Display resized image if it exists
+                        if 'resized_single_image' in st.session_state:
+                            resized_img = st.session_state.resized_single_image
+                            # Create thumbnail for display if image is too large
+                            display_resized = resized_img.copy()
+                            if display_resized.width > 400 or display_resized.height > 400:
+                                display_resized.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                            st.image(display_resized, caption=f"Resized: {resized_img.width}×{resized_img.height}")
+                            
+                            # Download button for resized image
+                            try:
+                                img_buffer = io.BytesIO()
+                                resized_img.save(img_buffer, format='PNG')
+                                img_bytes = img_buffer.getvalue()
+                                
+                                # Create filename with scale factor
+                                original_name = single_image_file.name.rsplit('.', 1)[0]
+                                scale_suffix = selected_scale_label.split(' ')[0].replace('.', '_')
+                                filename = f"{original_name}_{scale_suffix}.png"
+                                
+                                st.download_button(
+                                    label="💾 Download Resized Image",
+                                    data=img_bytes,
+                                    file_name=filename,
+                                    mime="image/png",
+                                    type="primary"
+                                )
+                            except Exception as e:
+                                st.error(f"❌ Error preparing download: {str(e)}")
+                
+                except Exception as e:
+                    st.error(f"❌ Error processing image: {str(e)}")
+            else:
+                st.error(f"❌ Invalid image file: {error_msg}")
+    
+    with tab1:
     
     # Sidebar for settings
-    with st.sidebar:
+        with st.sidebar:
         st.header("Settings")
         
         # Image resize settings
@@ -313,18 +444,34 @@ def main():
             st.info("👆 Upload images first to generate a collage")
     
     # Instructions
-    with st.expander("ℹ️ How to use this app"):
+        with st.expander("ℹ️ How to use this app"):
+            st.markdown("""
+            1. **Upload Images**: Click on the upload area and select multiple image files (PNG, JPG, JPEG)
+            2. **Adjust Settings**: Use the sidebar to customize image size and preview the grid layout
+            3. **Generate Collage**: Click the "Create Collage" button to generate your grid collage
+            4. **Download**: Save your collage as a PNG file using the download button
+            
+            **Tips**:
+            - The app automatically calculates the best grid layout based on the number of images
+            - Images are resized to maintain consistent appearance
+            - Large images are automatically downsized to improve performance
+            - The collage maintains the aspect ratio of your chosen dimensions
+            """)
+    
+    # General instructions for both features
+    with st.expander("ℹ️ About this app"):
         st.markdown("""
-        1. **Upload Images**: Click on the upload area and select multiple image files (PNG, JPG, JPEG)
-        2. **Adjust Settings**: Use the sidebar to customize image size and preview the grid layout
-        3. **Generate Collage**: Click the "Create Collage" button to generate your grid collage
-        4. **Download**: Save your collage as a PNG file using the download button
+        This app provides two main features:
         
-        **Tips**:
-        - The app automatically calculates the best grid layout based on the number of images
-        - Images are resized to maintain consistent appearance
-        - Large images are automatically downsized to improve performance
-        - The collage maintains the aspect ratio of your chosen dimensions
+        **📊 Image Collage**: Create beautiful grid layouts from multiple images
+        - Upload multiple images and arrange them in customizable grids
+        - Reorder images with drag-and-drop style controls
+        - Adjust grid layout and image sizes
+        
+        **🔍 Single Image Resize**: Resize individual images with preset scale factors
+        - Upload a single image and choose from 5 scale options
+        - Preview original and resized versions side by side
+        - Download the resized image in high quality
         """)
 
 if __name__ == "__main__":
