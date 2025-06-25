@@ -18,8 +18,8 @@ def calculate_grid_size(num_images):
         cols = math.ceil(num_images / rows)
         return rows, cols
 
-def resize_image(image, target_size=(200, 200)):
-    """Resize image to target size while maintaining aspect ratio"""
+def resize_image(image, scale_factor=0.45):
+    """Resize image by scale factor while maintaining aspect ratio"""
     # Convert to RGB if necessary (for PNG with transparency)
     if image.mode in ('RGBA', 'LA', 'P'):
         # Create a white background
@@ -31,19 +31,17 @@ def resize_image(image, target_size=(200, 200)):
     elif image.mode != 'RGB':
         image = image.convert('RGB')
     
-    # Resize with maintaining aspect ratio
-    image.thumbnail(target_size, Image.Resampling.LANCZOS)
+    # Calculate new size based on scale factor
+    new_width = int(image.width * scale_factor)
+    new_height = int(image.height * scale_factor)
     
-    # Create a new image with exact target size and paste the resized image in center
-    new_image = Image.new('RGB', target_size, (255, 255, 255))
-    x = (target_size[0] - image.width) // 2
-    y = (target_size[1] - image.height) // 2
-    new_image.paste(image, (x, y))
+    # Resize image maintaining aspect ratio
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
     
-    return new_image
+    return resized_image
 
-def create_collage(images, target_size=(200, 200)):
-    """Create a grid collage from list of images"""
+def create_collage(images, scale_factor=0.45):
+    """Create a grid collage from list of images without whitespace"""
     if not images:
         return None
     
@@ -53,28 +51,30 @@ def create_collage(images, target_size=(200, 200)):
     # Resize all images
     resized_images = []
     for img in images:
-        resized_img = resize_image(img, target_size)
+        resized_img = resize_image(img, scale_factor)
         resized_images.append(resized_img)
     
-    # Fill empty slots with white images if needed
-    total_slots = rows * cols
-    while len(resized_images) < total_slots:
-        white_image = Image.new('RGB', target_size, (255, 255, 255))
-        resized_images.append(white_image)
+    # Calculate collage dimensions based on actual image sizes
+    if resized_images:
+        # Get the maximum width and height from all resized images
+        max_width = max(img.width for img in resized_images)
+        max_height = max(img.height for img in resized_images)
+        
+        # Create the collage without any padding
+        collage_width = cols * max_width
+        collage_height = rows * max_height
+        collage = Image.new('RGB', (collage_width, collage_height), (255, 255, 255))
+        
+        for i, img in enumerate(resized_images):
+            row = i // cols
+            col = i % cols
+            x = col * max_width
+            y = row * max_height
+            collage.paste(img, (x, y))
+        
+        return collage
     
-    # Create the collage
-    collage_width = cols * target_size[0]
-    collage_height = rows * target_size[1]
-    collage = Image.new('RGB', (collage_width, collage_height), (255, 255, 255))
-    
-    for i, img in enumerate(resized_images):
-        row = i // cols
-        col = i % cols
-        x = col * target_size[0]
-        y = row * target_size[1]
-        collage.paste(img, (x, y))
-    
-    return collage
+    return None
 
 def validate_image(uploaded_file):
     """Validate if uploaded file is a valid image"""
@@ -102,11 +102,16 @@ def main():
     with st.sidebar:
         st.header("Settings")
         
-        # Image size settings
-        st.subheader("Image Size")
-        img_width = st.slider("Width (pixels)", 100, 500, 200, 50)
-        img_height = st.slider("Height (pixels)", 100, 500, 200, 50)
-        target_size = (img_width, img_height)
+        # Image resize settings
+        st.subheader("Image Resize")
+        scale_factor = st.slider(
+            "Resize Factor (%)", 
+            min_value=10, 
+            max_value=100, 
+            value=45, 
+            step=5,
+            help="Percentage to resize images while maintaining aspect ratio"
+        ) / 100.0
         
         # Grid preview
         if 'uploaded_images' in st.session_state and st.session_state.uploaded_images:
@@ -115,7 +120,7 @@ def main():
             st.subheader("Grid Preview")
             st.write(f"📊 Grid: {rows} × {cols}")
             st.write(f"📸 Images: {num_images}")
-            st.write(f"📐 Final size: {cols * img_width} × {rows * img_height} pixels")
+            st.write(f"🔄 Resize: {int(scale_factor * 100)}%")
     
     # Main content area
     col1, col2 = st.columns([1, 1])
@@ -195,7 +200,7 @@ def main():
                 with st.spinner("Creating your collage..."):
                     try:
                         # Create the collage
-                        collage = create_collage(st.session_state.uploaded_images, target_size)
+                        collage = create_collage(st.session_state.uploaded_images, scale_factor)
                         
                         if collage:
                             st.session_state.collage = collage
