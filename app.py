@@ -171,8 +171,8 @@ def main():
         
         # Main content area
         col1, col2 = st.columns([1, 1])
-    
-    with col1:
+        
+        with col1:
         st.header("📤 Upload Images")
         
         # File uploader
