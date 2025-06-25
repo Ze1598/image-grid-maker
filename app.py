@@ -233,40 +233,50 @@ def main():
                 st.error(f"❌ Invalid image file: {error_msg}")
     
     with tab1:
-        # Sidebar for settings
-        with st.sidebar:
-            st.header("Settings")
+        # Settings section moved to main area
+        st.header("⚙️ Settings")
         
-        # Image resize settings
-        st.subheader("Image Resize")
-        scale_factor = st.slider(
-            "Resize Factor (%)", 
-            min_value=10, 
-            max_value=100, 
-            value=45, 
-            step=5,
-            help="Percentage to resize images while maintaining aspect ratio"
-        ) / 100.0
+        # Create columns for settings
+        settings_col1, settings_col2 = st.columns(2)
         
-        # Grid layout settings
-        st.subheader("Grid Layout")
-        cols_per_row = st.slider(
-            "Columns per Row", 
-            min_value=1, 
-            max_value=10, 
-            value=3, 
-            step=1,
-            help="Number of images to display per row in the collage"
-        )
+        with settings_col1:
+            # Image resize settings
+            st.subheader("Image Resize")
+            scale_factor = st.slider(
+                "Resize Factor (%)", 
+                min_value=10, 
+                max_value=100, 
+                value=45, 
+                step=5,
+                help="Percentage to resize images while maintaining aspect ratio"
+            ) / 100.0
+        
+        with settings_col2:
+            # Grid layout settings
+            st.subheader("Grid Layout")
+            cols_per_row = st.slider(
+                "Columns per Row", 
+                min_value=1, 
+                max_value=10, 
+                value=3, 
+                step=1,
+                help="Number of images to display per row in the collage"
+            )
         
         # Grid preview
         if 'uploaded_images' in st.session_state and st.session_state.uploaded_images:
             num_images = len(st.session_state.uploaded_images)
             rows, cols = calculate_grid_size(num_images, cols_per_row)
-            st.subheader("Grid Preview")
-            st.write(f"📊 Grid: {rows} × {cols}")
-            st.write(f"📸 Images: {num_images}")
-            st.write(f"🔄 Resize: {int(scale_factor * 100)}%")
+            st.subheader("📊 Grid Preview")
+            preview_col1, preview_col2, preview_col3 = st.columns(3)
+            with preview_col1:
+                st.metric("Grid Layout", f"{rows} × {cols}")
+            with preview_col2:
+                st.metric("Total Images", num_images)
+            with preview_col3:
+                st.metric("Resize Factor", f"{int(scale_factor * 100)}%")
+        
+        st.divider()
     
     # Main content area
     col1, col2 = st.columns([1, 1])
