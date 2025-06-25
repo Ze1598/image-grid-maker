@@ -192,21 +192,73 @@ def main():
                 for error in invalid_files:
                     st.write(f"• {error}")
             
-            # Show image thumbnails
+            # Show image thumbnails with reordering
             if valid_images:
                 st.subheader("📋 Uploaded Images Preview")
+                st.markdown("**💡 Tip:** Use the controls below to reorder your images before creating the collage")
                 
-                # Display thumbnails in a grid
+                # Initialize image order in session state if not exists
+                if 'image_order' not in st.session_state or len(st.session_state.image_order) != len(valid_images):
+                    st.session_state.image_order = list(range(len(valid_images)))
+                
+                # Reordering controls
+                col_controls = st.columns([1, 1, 1, 2])
+                with col_controls[0]:
+                    if st.button("🔄 Reset Order"):
+                        st.session_state.image_order = list(range(len(valid_images)))
+                        st.rerun()
+                
+                with col_controls[1]:
+                    if st.button("🔀 Shuffle"):
+                        import random
+                        random.shuffle(st.session_state.image_order)
+                        st.rerun()
+                
+                with col_controls[2]:
+                    if st.button("↩️ Reverse"):
+                        st.session_state.image_order.reverse()
+                        st.rerun()
+                
+                # Manual reordering interface
+                st.markdown("**Move Images:**")
+                move_cols = st.columns([2, 1, 2, 1])
+                with move_cols[0]:
+                    move_from = st.selectbox("Move image from position:", 
+                                           options=range(1, len(valid_images) + 1),
+                                           format_func=lambda x: f"Position {x}")
+                with move_cols[1]:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    move_button = st.button("➡️")
+                with move_cols[2]:
+                    move_to = st.selectbox("To position:", 
+                                         options=range(1, len(valid_images) + 1),
+                                         format_func=lambda x: f"Position {x}")
+                
+                if move_button and move_from != move_to:
+                    # Convert to 0-based indexing
+                    from_idx = move_from - 1
+                    to_idx = move_to - 1
+                    
+                    # Remove the item from its current position
+                    item = st.session_state.image_order.pop(from_idx)
+                    # Insert it at the new position
+                    st.session_state.image_order.insert(to_idx, item)
+                    st.rerun()
+                
+                # Display thumbnails in current order
+                ordered_images = [valid_images[i] for i in st.session_state.image_order]
+                
                 num_cols = 4
-                for i in range(0, len(valid_images), num_cols):
+                for i in range(0, len(ordered_images), num_cols):
                     cols = st.columns(num_cols)
                     for j, col in enumerate(cols):
-                        if i + j < len(valid_images):
+                        if i + j < len(ordered_images):
                             with col:
                                 # Create thumbnail for preview
-                                thumb = valid_images[i + j].copy()
+                                thumb = ordered_images[i + j].copy()
                                 thumb.thumbnail((150, 150), Image.Resampling.LANCZOS)
-                                st.image(thumb, caption=f"Image {i + j + 1}")
+                                original_idx = st.session_state.image_order[i + j]
+                                st.image(thumb, caption=f"Pos {i + j + 1} (Original #{original_idx + 1})")
     
     with col2:
         st.header("🎨 Generate Collage")
@@ -215,8 +267,14 @@ def main():
             if st.button("🚀 Create Collage", type="primary", use_container_width=True):
                 with st.spinner("Creating your collage..."):
                     try:
+                        # Get images in the current order
+                        if 'image_order' in st.session_state:
+                            ordered_images = [st.session_state.uploaded_images[i] for i in st.session_state.image_order]
+                        else:
+                            ordered_images = st.session_state.uploaded_images
+                        
                         # Create the collage
-                        collage = create_collage(st.session_state.uploaded_images, scale_factor, cols_per_row)
+                        collage = create_collage(ordered_images, scale_factor, cols_per_row)
                         
                         if collage:
                             st.session_state.collage = collage
