@@ -350,7 +350,7 @@ elif app_mode == "📏 Resize Single Image":
     col1, col2 = st.columns([1, 1])
     
     with col1:
-            st.subheader("📤 Upload Image")
+        st.subheader("📤 Upload Image")
         
         # Single file uploader
         uploaded_file = st.file_uploader(
@@ -386,72 +386,72 @@ elif app_mode == "📏 Resize Single Image":
     
     with col2:
         st.subheader("🎛️ Resize Options")
+        
+        if 'single_image' in st.session_state:
+            # Scale factor selection
+            scale_options = {
+                "0.25x (Quarter Size)": 0.25,
+                "0.5x (Half Size)": 0.5,
+                "1x (Original Size)": 1.0,
+                "2x (Double Size)": 2.0,
+                "4x (Quadruple Size)": 4.0
+            }
             
-            if 'single_image' in st.session_state:
-                # Scale factor selection
-                scale_options = {
-                    "0.25x (Quarter Size)": 0.25,
-                    "0.5x (Half Size)": 0.5,
-                    "1x (Original Size)": 1.0,
-                    "2x (Double Size)": 2.0,
-                    "4x (Quadruple Size)": 4.0
-                }
-                
-                selected_scale = st.selectbox(
-                    "Choose resize factor:",
-                    options=list(scale_options.keys()),
-                    index=2,  # Default to 1x
-                    help="Select how much to scale the image"
-                )
-                
-                scale_factor = scale_options[selected_scale]
-                
-                # Show preview of new dimensions
-                original_image = st.session_state.single_image
-                new_width = int(original_image.width * scale_factor)
-                new_height = int(original_image.height * scale_factor)
-                
-                st.write(f"**New Dimensions:** {new_width} × {new_height} pixels")
-                
-                # Resize button
-                if st.button("🔄 Resize Image", type="primary", use_container_width=True):
-                    with st.spinner("Resizing image..."):
-                        try:
-                            resized_image = resize_single_image(original_image, scale_factor)
-                            st.session_state.resized_image = resized_image
-                            st.success("🎉 Image resized successfully!")
-                        except Exception as e:
-                            st.error(f"❌ Error resizing image: {str(e)}")
-                
-                # Display resized image and download option
-                if 'resized_image' in st.session_state:
-                    st.subheader("🖼️ Resized Image")
-                    
-                    # Show resized image (with reasonable display size)
-                    display_image = st.session_state.resized_image.copy()
-                    if display_image.width > 400 or display_image.height > 400:
-                        display_image.thumbnail((400, 400), Image.Resampling.LANCZOS)
-                    
-                    st.image(display_image, caption=f"Resized Image ({selected_scale})", use_container_width=False)
-                    
-                    # Download button
+            selected_scale = st.selectbox(
+                "Choose resize factor:",
+                options=list(scale_options.keys()),
+                index=2,  # Default to 1x
+                help="Select how much to scale the image"
+            )
+            
+            scale_factor = scale_options[selected_scale]
+            
+            # Show preview of new dimensions
+            original_image = st.session_state.single_image
+            new_width = int(original_image.width * scale_factor)
+            new_height = int(original_image.height * scale_factor)
+            
+            st.write(f"**New Dimensions:** {new_width} × {new_height} pixels")
+            
+            # Resize button
+            if st.button("🔄 Resize Image", type="primary", use_container_width=True):
+                with st.spinner("Resizing image..."):
                     try:
-                        img_buffer = io.BytesIO()
-                        st.session_state.resized_image.save(img_buffer, format='PNG')
-                        img_bytes = img_buffer.getvalue()
-                        
-                        st.download_button(
-                            label="💾 Download Resized Image",
-                            data=img_bytes,
-                            file_name=f"resized_image_{selected_scale.replace('x', '')}.png",
-                            mime="image/png",
-                            type="primary",
-                            use_container_width=True
-                        )
+                        resized_image = resize_single_image(original_image, scale_factor)
+                        st.session_state.resized_image = resized_image
+                        st.success("🎉 Image resized successfully!")
                     except Exception as e:
-                        st.error(f"❌ Error preparing download: {str(e)}")
-            else:
-                st.info("👈 Upload an image first to resize it")
+                        st.error(f"❌ Error resizing image: {str(e)}")
+            
+            # Display resized image and download option
+            if 'resized_image' in st.session_state:
+                st.subheader("🖼️ Resized Image")
+                
+                # Show resized image (with reasonable display size)
+                display_image = st.session_state.resized_image.copy()
+                if display_image.width > 400 or display_image.height > 400:
+                    display_image.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                
+                st.image(display_image, caption=f"Resized Image ({selected_scale})", use_container_width=False)
+                
+                # Download button
+                try:
+                    img_buffer = io.BytesIO()
+                    st.session_state.resized_image.save(img_buffer, format='PNG')
+                    img_bytes = img_buffer.getvalue()
+                    
+                    st.download_button(
+                        label="💾 Download Resized Image",
+                        data=img_bytes,
+                        file_name=f"resized_image_{selected_scale.replace('x', '')}.png",
+                        mime="image/png",
+                        type="primary",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ Error preparing download: {str(e)}")
+        else:
+            st.info("👈 Upload an image first to resize it")
     
     # Instructions
     with st.expander("ℹ️ How to use this app"):
