@@ -173,7 +173,7 @@ def main():
         col1, col2 = st.columns([1, 1])
         
         with col1:
-        st.header("📤 Upload Images")
+            st.header("📤 Upload Images")
         
         # File uploader
         uploaded_files = st.file_uploader(
