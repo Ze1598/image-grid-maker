@@ -346,46 +346,46 @@ def main():
 elif app_mode == "📏 Resize Single Image":
     # Single image resize mode
     st.header("📏 Single Image Resizer")
-        
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
             st.subheader("📤 Upload Image")
-            
-            # Single file uploader
-            uploaded_file = st.file_uploader(
-                "Choose an image file",
-                type=['png', 'jpg', 'jpeg'],
-                help="Select a PNG, JPG, or JPEG file"
-            )
-            
-            if uploaded_file:
-                # Validate and process image
-                is_valid, error_msg = validate_image(uploaded_file)
-                if is_valid:
-                    try:
-                        image = Image.open(uploaded_file)
-                        st.session_state.single_image = image
-                        st.success(f"✅ Image '{uploaded_file.name}' uploaded successfully!")
-                        
-                        # Display original image info
-                        st.subheader("📊 Original Image Info")
-                        st.write(f"**Dimensions:** {image.width} × {image.height} pixels")
-                        st.write(f"**Format:** {image.format}")
-                        st.write(f"**Mode:** {image.mode}")
-                        
-                        # Show thumbnail of original
-                        thumb = image.copy()
-                        thumb.thumbnail((300, 300), Image.Resampling.LANCZOS)
-                        st.image(thumb, caption="Original Image", use_container_width=False)
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error processing image: {str(e)}")
-                else:
-                    st.error(f"❌ Invalid image file: {error_msg}")
         
-        with col2:
-            st.subheader("🎛️ Resize Options")
+        # Single file uploader
+        uploaded_file = st.file_uploader(
+            "Choose an image file",
+            type=['png', 'jpg', 'jpeg'],
+            help="Select a PNG, JPG, or JPEG file"
+        )
+        
+        if uploaded_file:
+            # Validate and process image
+            is_valid, error_msg = validate_image(uploaded_file)
+            if is_valid:
+                try:
+                    image = Image.open(uploaded_file)
+                    st.session_state.single_image = image
+                    st.success(f"✅ Image '{uploaded_file.name}' uploaded successfully!")
+                    
+                    # Display original image info
+                    st.subheader("📊 Original Image Info")
+                    st.write(f"**Dimensions:** {image.width} × {image.height} pixels")
+                    st.write(f"**Format:** {image.format}")
+                    st.write(f"**Mode:** {image.mode}")
+                    
+                    # Show thumbnail of original
+                    thumb = image.copy()
+                    thumb.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                    st.image(thumb, caption="Original Image", use_container_width=False)
+                    
+                except Exception as e:
+                    st.error(f"❌ Error processing image: {str(e)}")
+            else:
+                st.error(f"❌ Invalid image file: {error_msg}")
+    
+    with col2:
+        st.subheader("🎛️ Resize Options")
             
             if 'single_image' in st.session_state:
                 # Scale factor selection
