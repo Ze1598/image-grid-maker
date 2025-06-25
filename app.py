@@ -5,17 +5,22 @@ import zipfile
 from PIL import Image
 import numpy as np
 
-def calculate_grid_size(num_images):
-    """Calculate optimal grid dimensions for given number of images"""
+def calculate_grid_size(num_images, cols_per_row=None):
+    """Calculate grid dimensions for given number of images"""
     if num_images == 0:
         return 0, 0
     elif num_images == 1:
         return 1, 1
     else:
-        # Calculate square root and round up for rows
-        sqrt_num = math.sqrt(num_images)
-        rows = math.ceil(sqrt_num)
-        cols = math.ceil(num_images / rows)
+        if cols_per_row:
+            # Use specified columns per row
+            cols = cols_per_row
+            rows = math.ceil(num_images / cols)
+        else:
+            # Calculate square root and round up for rows (default behavior)
+            sqrt_num = math.sqrt(num_images)
+            rows = math.ceil(sqrt_num)
+            cols = math.ceil(num_images / rows)
         return rows, cols
 
 def resize_image(image, scale_factor=0.45):
@@ -40,13 +45,13 @@ def resize_image(image, scale_factor=0.45):
     
     return resized_image
 
-def create_collage(images, scale_factor=0.45):
+def create_collage(images, scale_factor=0.45, cols_per_row=None):
     """Create a grid collage from list of images without whitespace"""
     if not images:
         return None
     
     num_images = len(images)
-    rows, cols = calculate_grid_size(num_images)
+    rows, cols = calculate_grid_size(num_images, cols_per_row)
     
     # Resize all images
     resized_images = []
@@ -113,10 +118,21 @@ def main():
             help="Percentage to resize images while maintaining aspect ratio"
         ) / 100.0
         
+        # Grid layout settings
+        st.subheader("Grid Layout")
+        cols_per_row = st.slider(
+            "Columns per Row", 
+            min_value=1, 
+            max_value=10, 
+            value=3, 
+            step=1,
+            help="Number of images to display per row in the collage"
+        )
+        
         # Grid preview
         if 'uploaded_images' in st.session_state and st.session_state.uploaded_images:
             num_images = len(st.session_state.uploaded_images)
-            rows, cols = calculate_grid_size(num_images)
+            rows, cols = calculate_grid_size(num_images, cols_per_row)
             st.subheader("Grid Preview")
             st.write(f"📊 Grid: {rows} × {cols}")
             st.write(f"📸 Images: {num_images}")
@@ -200,7 +216,7 @@ def main():
                 with st.spinner("Creating your collage..."):
                     try:
                         # Create the collage
-                        collage = create_collage(st.session_state.uploaded_images, scale_factor)
+                        collage = create_collage(st.session_state.uploaded_images, scale_factor, cols_per_row)
                         
                         if collage:
                             st.session_state.collage = collage
