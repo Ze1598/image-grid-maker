@@ -343,7 +343,7 @@ def main():
         else:
             st.info("👆 Upload images first to generate a collage")
     
-    elif app_mode == "📏 Resize Single Image":
+elif app_mode == "📏 Resize Single Image":
         # Single image resize mode
         st.header("📏 Single Image Resizer")
         
