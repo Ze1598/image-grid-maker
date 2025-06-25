@@ -93,6 +93,28 @@ def validate_image(uploaded_file):
     except Exception as e:
         return False, str(e)
 
+def resize_single_image(image, scale_factor):
+    """Resize a single image by the specified scale factor"""
+    # Convert to RGB if necessary (for PNG with transparency)
+    if image.mode in ('RGBA', 'LA', 'P'):
+        # Create a white background
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        if image.mode == 'P':
+            image = image.convert('RGBA')
+        background.paste(image, mask=image.split()[-1] if image.mode == 'RGBA' else None)
+        image = background
+    elif image.mode != 'RGB':
+        image = image.convert('RGB')
+    
+    # Calculate new size based on scale factor
+    new_width = int(image.width * scale_factor)
+    new_height = int(image.height * scale_factor)
+    
+    # Resize image
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    return resized_image
+
 def main():
     st.set_page_config(
         page_title="Image Collage Generator",
@@ -101,45 +123,54 @@ def main():
     )
     
     st.title("🖼️ Image Collage Generator")
-    st.markdown("Upload multiple images to create a beautiful grid collage!")
+    st.markdown("Upload multiple images to create a beautiful grid collage, or resize a single image!")
     
-    # Sidebar for settings
-    with st.sidebar:
-        st.header("Settings")
-        
-        # Image resize settings
-        st.subheader("Image Resize")
-        scale_factor = st.slider(
-            "Resize Factor (%)", 
-            min_value=10, 
-            max_value=100, 
-            value=45, 
-            step=5,
-            help="Percentage to resize images while maintaining aspect ratio"
-        ) / 100.0
-        
-        # Grid layout settings
-        st.subheader("Grid Layout")
-        cols_per_row = st.slider(
-            "Columns per Row", 
-            min_value=1, 
-            max_value=10, 
-            value=3, 
-            step=1,
-            help="Number of images to display per row in the collage"
-        )
-        
-        # Grid preview
-        if 'uploaded_images' in st.session_state and st.session_state.uploaded_images:
-            num_images = len(st.session_state.uploaded_images)
-            rows, cols = calculate_grid_size(num_images, cols_per_row)
-            st.subheader("Grid Preview")
-            st.write(f"📊 Grid: {rows} × {cols}")
-            st.write(f"📸 Images: {num_images}")
-            st.write(f"🔄 Resize: {int(scale_factor * 100)}%")
+    # App mode selection
+    app_mode = st.radio(
+        "Choose mode:",
+        ["🖼️ Create Collage", "📏 Resize Single Image"],
+        horizontal=True
+    )
     
-    # Main content area
-    col1, col2 = st.columns([1, 1])
+    if app_mode == "🖼️ Create Collage":
+        # Collage mode - existing functionality
+        # Sidebar for settings
+        with st.sidebar:
+            st.header("Settings")
+            
+            # Image resize settings
+            st.subheader("Image Resize")
+            scale_factor = st.slider(
+                "Resize Factor (%)", 
+                min_value=10, 
+                max_value=100, 
+                value=45, 
+                step=5,
+                help="Percentage to resize images while maintaining aspect ratio"
+            ) / 100.0
+            
+            # Grid layout settings
+            st.subheader("Grid Layout")
+            cols_per_row = st.slider(
+                "Columns per Row", 
+                min_value=1, 
+                max_value=10, 
+                value=3, 
+                step=1,
+                help="Number of images to display per row in the collage"
+            )
+            
+            # Grid preview
+            if 'uploaded_images' in st.session_state and st.session_state.uploaded_images:
+                num_images = len(st.session_state.uploaded_images)
+                rows, cols = calculate_grid_size(num_images, cols_per_row)
+                st.subheader("Grid Preview")
+                st.write(f"📊 Grid: {rows} × {cols}")
+                st.write(f"📸 Images: {num_images}")
+                st.write(f"🔄 Resize: {int(scale_factor * 100)}%")
+        
+        # Main content area
+        col1, col2 = st.columns([1, 1])
     
     with col1:
         st.header("📤 Upload Images")
@@ -312,20 +343,147 @@ def main():
         else:
             st.info("👆 Upload images first to generate a collage")
     
+    else:
+        # Single image resize mode
+        st.header("📏 Single Image Resizer")
+        
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.subheader("📤 Upload Image")
+            
+            # Single file uploader
+            uploaded_file = st.file_uploader(
+                "Choose an image file",
+                type=['png', 'jpg', 'jpeg'],
+                help="Select a PNG, JPG, or JPEG file"
+            )
+            
+            if uploaded_file:
+                # Validate and process image
+                is_valid, error_msg = validate_image(uploaded_file)
+                if is_valid:
+                    try:
+                        image = Image.open(uploaded_file)
+                        st.session_state.single_image = image
+                        st.success(f"✅ Image '{uploaded_file.name}' uploaded successfully!")
+                        
+                        # Display original image info
+                        st.subheader("📊 Original Image Info")
+                        st.write(f"**Dimensions:** {image.width} × {image.height} pixels")
+                        st.write(f"**Format:** {image.format}")
+                        st.write(f"**Mode:** {image.mode}")
+                        
+                        # Show thumbnail of original
+                        thumb = image.copy()
+                        thumb.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                        st.image(thumb, caption="Original Image", use_container_width=False)
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error processing image: {str(e)}")
+                else:
+                    st.error(f"❌ Invalid image file: {error_msg}")
+        
+        with col2:
+            st.subheader("🎛️ Resize Options")
+            
+            if 'single_image' in st.session_state:
+                # Scale factor selection
+                scale_options = {
+                    "0.25x (Quarter Size)": 0.25,
+                    "0.5x (Half Size)": 0.5,
+                    "1x (Original Size)": 1.0,
+                    "2x (Double Size)": 2.0,
+                    "4x (Quadruple Size)": 4.0
+                }
+                
+                selected_scale = st.selectbox(
+                    "Choose resize factor:",
+                    options=list(scale_options.keys()),
+                    index=2,  # Default to 1x
+                    help="Select how much to scale the image"
+                )
+                
+                scale_factor = scale_options[selected_scale]
+                
+                # Show preview of new dimensions
+                original_image = st.session_state.single_image
+                new_width = int(original_image.width * scale_factor)
+                new_height = int(original_image.height * scale_factor)
+                
+                st.write(f"**New Dimensions:** {new_width} × {new_height} pixels")
+                
+                # Resize button
+                if st.button("🔄 Resize Image", type="primary", use_container_width=True):
+                    with st.spinner("Resizing image..."):
+                        try:
+                            resized_image = resize_single_image(original_image, scale_factor)
+                            st.session_state.resized_image = resized_image
+                            st.success("🎉 Image resized successfully!")
+                        except Exception as e:
+                            st.error(f"❌ Error resizing image: {str(e)}")
+                
+                # Display resized image and download option
+                if 'resized_image' in st.session_state:
+                    st.subheader("🖼️ Resized Image")
+                    
+                    # Show resized image (with reasonable display size)
+                    display_image = st.session_state.resized_image.copy()
+                    if display_image.width > 400 or display_image.height > 400:
+                        display_image.thumbnail((400, 400), Image.Resampling.LANCZOS)
+                    
+                    st.image(display_image, caption=f"Resized Image ({selected_scale})", use_container_width=False)
+                    
+                    # Download button
+                    try:
+                        img_buffer = io.BytesIO()
+                        st.session_state.resized_image.save(img_buffer, format='PNG')
+                        img_bytes = img_buffer.getvalue()
+                        
+                        st.download_button(
+                            label="💾 Download Resized Image",
+                            data=img_bytes,
+                            file_name=f"resized_image_{selected_scale.replace('x', '')}.png",
+                            mime="image/png",
+                            type="primary",
+                            use_container_width=True
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Error preparing download: {str(e)}")
+            else:
+                st.info("👈 Upload an image first to resize it")
+    
     # Instructions
     with st.expander("ℹ️ How to use this app"):
-        st.markdown("""
-        1. **Upload Images**: Click on the upload area and select multiple image files (PNG, JPG, JPEG)
-        2. **Adjust Settings**: Use the sidebar to customize image size and preview the grid layout
-        3. **Generate Collage**: Click the "Create Collage" button to generate your grid collage
-        4. **Download**: Save your collage as a PNG file using the download button
-        
-        **Tips**:
-        - The app automatically calculates the best grid layout based on the number of images
-        - Images are resized to maintain consistent appearance
-        - Large images are automatically downsized to improve performance
-        - The collage maintains the aspect ratio of your chosen dimensions
-        """)
+        if app_mode == "🖼️ Create Collage":
+            st.markdown("""
+            **Collage Mode:**
+            1. **Upload Images**: Click on the upload area and select multiple image files (PNG, JPG, JPEG)
+            2. **Adjust Settings**: Use the sidebar to customize image size and grid layout
+            3. **Reorder Images**: Use the reordering controls to arrange images as desired
+            4. **Generate Collage**: Click the "Create Collage" button to generate your grid collage
+            5. **Download**: Save your collage as a PNG file using the download button
+            
+            **Tips**:
+            - The app automatically calculates the best grid layout based on the number of images
+            - Images are resized to maintain consistent appearance
+            - You can reorder images before creating the collage
+            """)
+        else:
+            st.markdown("""
+            **Single Image Resize Mode:**
+            1. **Upload Image**: Click on the upload area and select a single image file (PNG, JPG, JPEG)
+            2. **Choose Scale**: Select from the resize options (0.25x, 0.5x, 1x, 2x, 4x)
+            3. **Resize**: Click the "Resize Image" button to apply the scaling
+            4. **Download**: Save your resized image as a PNG file using the download button
+            
+            **Scale Options**:
+            - **0.25x**: Quarter size (25% of original)
+            - **0.5x**: Half size (50% of original)
+            - **1x**: Original size (no change)
+            - **2x**: Double size (200% of original)
+            - **4x**: Quadruple size (400% of original)
+            """)
 
 if __name__ == "__main__":
     main()
