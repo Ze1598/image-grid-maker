@@ -233,10 +233,9 @@ def main():
                 st.error(f"❌ Invalid image file: {error_msg}")
     
     with tab1:
-    
-    # Sidebar for settings
+        # Sidebar for settings
         with st.sidebar:
-        st.header("Settings")
+            st.header("Settings")
         
         # Image resize settings
         st.subheader("Image Resize")
